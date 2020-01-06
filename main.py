@@ -32,42 +32,42 @@ def linear_forward(A, W, b):
 
 
 def sigmoid(z):
-    A = 1 / (1 + np.exp(-z))
-    return A, z.copy()
+    a = 1 / (1 + np.exp(-z))
+    return a, z.copy()
 
 
 ###need to return activation cache
 
 def relu(z):
-    A = np.maximum(z, 0)
-    return A, z.copy()
+    a = np.maximum(z, 0)
+    return a, z.copy()
 
 
 ###need to return activation cache
 
-def linear_activation_forward(A_prev, W, B, activation):
-    Z, linear_cache = linear_forward(A_prev, W.T, B)
+def linear_activation_forward(a_prev, w, b, activation):
+    z, linear_cache = linear_forward(a_prev, w.T, b)
     if activation == "relu":
-        A, activation_cache = relu(Z)
+        a, activation_cache = relu(z)
     else:
-        A, activation_cache = sigmoid(Z)
+        a, activation_cache = sigmoid(z)
 
     linear_cache.append(activation)
-    return A, (linear_cache, activation_cache)
+    return a, (linear_cache, activation_cache)
 
 
-def forward_propagation(X, parameters):
-    globalCache = []
+def forward_propagation(x, parameters):
+    global_cache = []
 
-    A1, tmpLocalCache = linear_activation_forward(X, parameters['W1'], parameters['b1'], "relu")
-    globalCache.append(tmpLocalCache)
-    A2, tmpLocalCache = linear_activation_forward(A1, parameters['W2'], parameters['b2'], "relu")
-    globalCache.append(tmpLocalCache)
-    A3, tmpLocalCache = linear_activation_forward(A2, parameters['W3'], parameters['b3'], "relu")
-    globalCache.append(tmpLocalCache)
-    AL, tmpLocalCache = linear_activation_forward(A3, parameters['W4'], parameters['b4'], "sigmoid")
-    globalCache.append(tmpLocalCache)
-    return AL, globalCache
+    a1, local_cache = linear_activation_forward(x, parameters['W1'], parameters['b1'], "relu")
+    global_cache.append(local_cache)
+    a2, local_cache = linear_activation_forward(a1, parameters['W2'], parameters['b2'], "relu")
+    global_cache.append(local_cache)
+    a3, local_cache = linear_activation_forward(a2, parameters['W3'], parameters['b3'], "relu")
+    global_cache.append(local_cache)
+    a_l, local_cache = linear_activation_forward(a3, parameters['W4'], parameters['b4'], "sigmoid")
+    global_cache.append(local_cache)
+    return a_l, global_cache
 
 
 def compute_cost(last_activation, real_labels):
@@ -81,82 +81,83 @@ def compute_cost(last_activation, real_labels):
     return final_cost
 
 
-def relu_backward(dA, activation_cache):
-    z = activation_cache
-    dZ = np.array(dA, copy=True)
-    # dZ=dZ*(dZ>0)
-
-    z = np.asarray(z)[0]
-    dZ[z <= 0] = 0
-    return dZ
+def relu_derivative(d_a, activation_cache):
+    z = activation_cache[0]
+    d_z = np.array(d_a, copy=True)
+    d_z[z <= 0] = 0
+    return d_z
 
 
-def sigmoid_backward(dA, activation_cache):
+def sigmoid_derivative(d_a, activation_cache):
     Z = activation_cache
     Z = np.asarray(Z)[0]
     s, f = relu(Z)
-    dZ = dA * s * (1 - s)
+    dZ = d_a * s * (1 - s)
 
     return dZ
 
+# def sigmoid_derivative(d_a, activation_cache):
+    #
+    # z = activation_cache[0]
+    # s, f = sigmoid(z)
+    # d_z = d_a * s * (1 - s)
+    # return d_z
 
-def linear_backward(dZ, cache):
-    # a, a2, a3 = cache
+
+def linear_backward(d_z, cache):
     a = cache[0]
     a2 = cache[1]
     a3 = cache[2]
-    W = np.asarray(a2)
+    w = np.asarray(a2)
     b = np.asarray(a3)
-    A_prev = np.asarray(a)
-    m = A_prev.shape[1]
-    dZ = np.asarray([dZ])[0]
+    a_prev = np.asarray(a)
+    m = a_prev.shape[1]
+    d_z = np.asarray([d_z])[0]
 
-    dW = 1. / m * np.dot(dZ, A_prev.T)
-    db = 1. / m * np.sum(dZ, axis=1, keepdims=True)
-    dA_prev = np.dot(W, dZ)
+    d_w = 1. / m * np.dot(d_z, a_prev.T)
+    d_b = 1. / m * np.sum(d_z, axis=1, keepdims=True)
+    d_a_prev = np.dot(w, d_z)
 
-    return dA_prev, dW, db
+    return d_a_prev, d_w, d_b
 
 
-def linear_activation_backward(dA, localCache, activation):
-    linear_cache = localCache[0]
-    activation_cache = localCache[1:4]
+def linear_activation_backward(d_a, local_cache, activation):
+    linear_cache = local_cache[0]
+    activation_cache = local_cache[1:4]
 
     if activation == "relu":
-        dZ = relu_backward(dA, activation_cache)
+        d_z = relu_derivative(d_a, activation_cache)
     else:
-        dZ = sigmoid_backward(dA, activation_cache)
+        d_z = sigmoid_derivative(d_a, activation_cache)
 
-    dA_prev, dW, db = linear_backward(dZ, linear_cache)
-    return dA_prev, dW, db
+    d_a_prev, d_w, db = linear_backward(d_z, linear_cache)
+    return d_a_prev, d_w, db
 
 
-def back_propagation(al, Y, caches):
-    numOfPre = len(al[0])
+def back_propagation(al, y, caches):
+    # numOfPre = len(al[0])
     al = al[0]
     # Y = Y.reshape(al.shape)
-    numOfLayers = len(caches)
+    num_of_layers = len(caches)
     gradients = {}
 
-    dAL = - (np.divide(Y, al) - np.divide(1 - Y, 1 - al))
+    d_al = - (np.divide(y, al) - np.divide(1 - y, 1 - al))
 
-    thisCache = caches[numOfLayers - 1]
-    dA_prev, dW, db = linear_activation_backward(dAL, thisCache, activation=thisCache[0][3])
+    current_cache = caches[num_of_layers - 1]
+    d_a_prev, d_w, db = linear_activation_backward(d_al, current_cache, activation=current_cache[0][3])
     # gradients.append([dA_prev, dW, db])
-    gradients["dA%s" % numOfLayers] = dA_prev
-    gradients["dW%s" % numOfLayers] = dW
-    gradients["db%s" % numOfLayers] = db
+    gradients["dA%s" % num_of_layers] = d_a_prev
+    gradients["dW%s" % num_of_layers] = d_w
+    gradients["db%s" % num_of_layers] = db
 
-    for l in reversed(range(numOfLayers - 1)):
+    for l in reversed(range(num_of_layers - 1)):
         # lth layer: (RELU -> LINEAR) gradients.
-        thisCache = caches[l]
-        dAL = gradients["dA%s" % (l + 2)]
-
-        dA_prev, dW, db = linear_activation_backward(dAL, thisCache, activation=thisCache[0][3])
-        gradients["dA%s" % (l + 1)] = dA_prev
-        gradients["dW%s" % (l + 1)] = dW
+        current_cache = caches[l]
+        d_al = gradients["dA%s" % (l + 2)]
+        d_a_prev, d_w, db = linear_activation_backward(d_al, current_cache, activation=current_cache[0][3])
+        gradients["dA%s" % (l + 1)] = d_a_prev
+        gradients["dW%s" % (l + 1)] = d_w
         gradients["db%s" % (l + 1)] = db
-
         # gradients.append([dA_prev, dW, db])
 
     return gradients
@@ -173,71 +174,49 @@ def update_parameters(parameters, grads, learning_rate):
 def train_network(x_data, y_data, layers_dims, l_rate, n_iterations):
     parameters = initialize_parameters(layers_dims)
     costs = []
-    for iter in range(0, n_iterations - 1):
+    print("the costs:")
+    for n_iter in range(0, n_iterations - 1):
         last_activation, caches = forward_propagation(x_data, parameters)
         cost = compute_cost(last_activation[0], y_data)
         grads = back_propagation(last_activation, y_data, caches)
         parameters = update_parameters(parameters, grads, l_rate)
-        if iter % 100 == 0:
+
+        if n_iter % 100 == 0:
+            print(cost)
             costs.append(cost)
-    print("the costs:")
-    print(costs)
+
+    # print(costs)
     return parameters, costs
 
 
-def Predict_tmp(X, Y, parameters):
-    m = len(X)
-    n = len(parameters) / 2  # number of layers in the neural network
 
-    # Forward propagation
-    probas, caches = forward_propagation(X, parameters)
+def predict(x, y, parameters):
+    predicted, caches = forward_propagation(x, parameters)
+    predicted = np.round(predicted[0])
+    t_p,f_p,t_n,f_n = 0,0,0,0
+    y_actual = y
 
-    # convert probas to 0/1 predictions
+    for i in range(len(predicted)):
+        if y_actual[i] == predicted[i] == 1:
+            t_p += 1
+        if predicted[i] == 1 and y_actual[i] != predicted[i]:
+            f_p += 1
+        if y_actual[i] == predicted[i] == 0:
+            t_n += 1
+        if predicted[i] == 0 and y_actual[i] != predicted[i]:
+            f_n += 1
 
-    if probas[0] > 0.5:
-        p = 1
-    else:
-        p = 0
-
-    # print results
-    # print ("predictions: " + str(p))
-    # print ("true labels: " + str(y))
-    acc = str(np.sum((p == Y)))
-    print("Accuracy: " + acc)
-
-    return acc
+    return (t_p + t_n) / (t_p + t_n + f_p + f_n)
 
 
-def Predict(X, Y, parameters):
-    preds, caches = forward_propagation(X, parameters)
-    preds = np.round(preds[0])
-    TP = 0
-    FP = 0
-    TN = 0
-    FN = 0
-    y_actual = Y
+def split_data(f_mndata, first_digit, second_digit):
+    train_images, train_images_labels = f_mndata.load_training()
+    f_train_labels, f_train_data = get_relevant_data(train_images, train_images_labels, first_digit, second_digit)
 
-    for i in range(len(preds)):
-        if y_actual[i] == preds[i] == 1:
-            TP += 1
-        if preds[i] == 1 and y_actual[i] != preds[i]:
-            FP += 1
-        if y_actual[i] == preds[i] == 0:
-            TN += 1
-        if preds[i] == 0 and y_actual[i] != preds[i]:
-            FN += 1
+    test_images, test_images_labels = f_mndata.load_testing()
+    f_test_labels, f_test_data = get_relevant_data(test_images, test_images_labels, first_digit, second_digit)
 
-    return (TP + TN) / (TP + TN + FP + FN)
-
-
-def getTrainTestData(mndata, first_digit, second_digit):
-    train_images, train_images_labels = mndata.load_training()
-    train_labels, train_data = get_relevant_data(train_images, train_images_labels, first_digit, second_digit)
-
-    test_images, test_images_labels = mndata.load_testing()
-    test_labels, test_data = get_relevant_data(test_images, test_images_labels, first_digit, second_digit)
-
-    return train_labels, train_data, test_labels, test_data
+    return f_train_labels, f_train_data, f_test_labels, f_test_data
 
 
 def get_relevant_data(images, labels, first_digit, second_digit):
@@ -260,14 +239,14 @@ if __name__ == '__main__':
     os.chdir(dname)
     mndata = MNIST(os.path.join(dname, 'samples'))
     # filter the relevant data by 2 specific digits
-    train_labels, train_data, test_labels, test_data = getTrainTestData(mndata, first_digit=3, second_digit=8)
+    train_labels, train_data, test_labels, test_data = split_data(mndata, first_digit=3, second_digit=8)
 
     network_layers = [784, 20, 7, 5, 1]
     finalParam, costs_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=3000)
 
-    accuracy38_train = Predict(train_data, train_labels, finalParam)
-    accuracy38_test = Predict(test_data, test_labels, finalParam)
-    print(accuracy38_train)
-    print(accuracy38_test)
+    accuracy_train = predict(train_data, train_labels, finalParam)
+    accuracy_test = predict(test_data, test_labels, finalParam)
+    print(accuracy_train)
+    print(accuracy_test)
 
 
