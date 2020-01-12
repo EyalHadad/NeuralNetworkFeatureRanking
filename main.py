@@ -96,12 +96,13 @@ def sigmoid_derivative(d_a, activation_cache):
 
     return dZ
 
+
 # def sigmoid_derivative(d_a, activation_cache):
-    #
-    # z = activation_cache[0]
-    # s, f = sigmoid(z)
-    # d_z = d_a * s * (1 - s)
-    # return d_z
+#
+# z = activation_cache[0]
+# s, f = sigmoid(z)
+# d_z = d_a * s * (1 - s)
+# return d_z
 
 
 def linear_backward(d_z, cache):
@@ -180,6 +181,7 @@ def train_network(x_data, y_data, layers_dims, l_rate, n_iterations):
         cost = compute_cost(last_activation[0], y_data)
         grads = back_propagation(last_activation, y_data, caches)
         parameters = update_parameters(parameters, grads, l_rate)
+        tmp_rank = rank1_formula(parameters)
 
         if n_iter % 100 == 0:
             print(cost)
@@ -189,11 +191,10 @@ def train_network(x_data, y_data, layers_dims, l_rate, n_iterations):
     return parameters, costs
 
 
-
 def predict(x, y, parameters):
     predicted, caches = forward_propagation(x, parameters)
     predicted = np.round(predicted[0])
-    t_p,f_p,t_n,f_n = 0,0,0,0
+    t_p, f_p, t_n, f_n = 0, 0, 0, 0
     y_actual = y
 
     for i in range(len(predicted)):
@@ -232,6 +233,19 @@ def get_relevant_data(images, labels, first_digit, second_digit):
     return new_labels, np.asarray(both_images).T
 
 
+def rank1_formula(final_params):
+    relevant_keys = ['W1', 'W2', 'W3', 'W4']
+    rank_dict = {'W1': [], 'W2': [], 'W3': [], 'W4': []}
+    for key in relevant_keys:
+        a_len = final_params[key].T.shape[0]
+        for ind in range(a_len):
+            new_key = key + str(ind)
+            new_val = np.absolute(final_params[key].T[ind]).mean()
+            rank_dict[key].append((new_key, new_val))
+
+    return rank_dict
+
+
 if __name__ == '__main__':
     # Get the data
     abspath = os.path.abspath(__file__)
@@ -242,11 +256,9 @@ if __name__ == '__main__':
     train_labels, train_data, test_labels, test_data = split_data(mndata, first_digit=3, second_digit=8)
 
     network_layers = [784, 20, 7, 5, 1]
-    finalParam, costs_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=3000)
-
+    finalParam, costs_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=300)
+    rank1_dict = rank1_formula(finalParam)
     accuracy_train = predict(train_data, train_labels, finalParam)
     accuracy_test = predict(test_data, test_labels, finalParam)
     print(accuracy_train)
     print(accuracy_test)
-
-
