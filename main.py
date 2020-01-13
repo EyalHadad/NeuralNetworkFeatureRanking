@@ -174,21 +174,21 @@ def update_parameters(parameters, grads, learning_rate):
 
 def train_network(x_data, y_data, layers_dims, l_rate, n_iterations):
     parameters = initialize_parameters(layers_dims)
-    costs = []
+    costs,ranks = [], []
     print("the costs:")
     for n_iter in range(0, n_iterations - 1):
         last_activation, caches = forward_propagation(x_data, parameters)
         cost = compute_cost(last_activation[0], y_data)
         grads = back_propagation(last_activation, y_data, caches)
         parameters = update_parameters(parameters, grads, l_rate)
-        tmp_rank = rank1_formula(parameters)
+        rank = rank1_formula(parameters)
 
         if n_iter % 100 == 0:
             print(cost)
             costs.append(cost)
+            ranks.append(rank)
 
-    # print(costs)
-    return parameters, costs
+    return parameters, costs, ranks
 
 
 def predict(x, y, parameters):
@@ -246,6 +246,30 @@ def rank1_formula(final_params):
     return rank_dict
 
 
+def factor_ranks(costs_new, ranks):
+    relevant_keys = ['W1', 'W2', 'W3', 'W4']
+    for i in range(len(ranks)):
+        for key in relevant_keys:
+            ranks[i][key] = [y * costs_new[i] for x, y in ranks[i]['W1']]
+    return ranks
+
+
+def calculate_final_rank(costs, ranks):
+    i=6
+    print(i)
+    costs_new = costs_to_prob_lists(costs)
+    factored_ranks = factor_ranks(costs_new, ranks)
+    print(i)
+
+    pass
+
+
+def costs_to_prob_lists(costs):
+    costs_abs = [abs(number) for number in costs]
+    prob_factor = 1 / sum(costs_abs)
+    return [prob_factor * p for p in costs_abs]
+
+
 if __name__ == '__main__':
     # Get the data
     abspath = os.path.abspath(__file__)
@@ -256,8 +280,9 @@ if __name__ == '__main__':
     train_labels, train_data, test_labels, test_data = split_data(mndata, first_digit=3, second_digit=8)
 
     network_layers = [784, 20, 7, 5, 1]
-    finalParam, costs_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=300)
-    rank1_dict = rank1_formula(finalParam)
+    finalParam, costs_1, ranks_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=300)
+    final_rank = calculate_final_rank(costs_1, ranks_1)
+
     accuracy_train = predict(train_data, train_labels, finalParam)
     accuracy_test = predict(test_data, test_labels, finalParam)
     print(accuracy_train)
