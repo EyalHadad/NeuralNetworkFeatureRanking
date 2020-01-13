@@ -1,3 +1,5 @@
+from functools import reduce
+
 import numpy as np
 import matplotlib.pyplot as plt
 import math
@@ -183,7 +185,7 @@ def train_network(x_data, y_data, layers_dims, l_rate, n_iterations):
         parameters = update_parameters(parameters, grads, l_rate)
         rank = rank1_formula(parameters)
 
-        if n_iter % 100 == 0:
+        if n_iter % 20 == 0:
             print(cost)
             costs.append(cost)
             ranks.append(rank)
@@ -250,18 +252,23 @@ def factor_ranks(costs_new, ranks):
     relevant_keys = ['W1', 'W2', 'W3', 'W4']
     for i in range(len(ranks)):
         for key in relevant_keys:
-            ranks[i][key] = [y * costs_new[i] for x, y in ranks[i]['W1']]
+            ranks[i][key] = [(x, y * costs_new[i]) for x, y in ranks[i]['W1']]
     return ranks
 
 
+def sum_ranks(rank1, rank2):
+    relevant_keys = ['W1', 'W2', 'W3', 'W4']
+    sum_rank = {}
+
+    for key in relevant_keys:
+        sum_rank[key] = [(x[1][0], x[0][1] + x[1][1]) for x in zip(rank1[key], rank2[key])]
+    return sum_rank
+
 def calculate_final_rank(costs, ranks):
-    i=6
-    print(i)
     costs_new = costs_to_prob_lists(costs)
     factored_ranks = factor_ranks(costs_new, ranks)
-    print(i)
-
-    pass
+    final_dict_rank = reduce(lambda x,y: sum_ranks(x,y),factored_ranks)
+    return final_dict_rank
 
 
 def costs_to_prob_lists(costs):
@@ -280,7 +287,7 @@ if __name__ == '__main__':
     train_labels, train_data, test_labels, test_data = split_data(mndata, first_digit=3, second_digit=8)
 
     network_layers = [784, 20, 7, 5, 1]
-    finalParam, costs_1, ranks_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=300)
+    finalParam, costs_1, ranks_1 = train_network(train_data, train_labels, network_layers, l_rate=0.001, n_iterations=100)
     final_rank = calculate_final_rank(costs_1, ranks_1)
 
     accuracy_train = predict(train_data, train_labels, finalParam)
